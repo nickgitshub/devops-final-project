@@ -1,0 +1,257 @@
+Description: >
+    CloudFormation script for final project 
+
+Parameters: 
+
+  EnvironmentName:
+        Description: Name of the envirornment within CloudFormation
+        Type: String
+
+  VpcCIDR: 
+        Description: CIDR notation this VPC
+        Type: String
+        Default: 10.0.0.0/16
+
+  PublicSubnet1CIDR:
+        Description: CIDR for the Public Subnet in AZ 1 
+        Type: String 
+        Default: 10.0.0.0/24 
+
+  PrivateSubnet1CIDR:
+        Description: CIDR for the Private Subnet in AZ 1 
+        Type: String 
+        Default: 10.0.1.0/24
+
+  PublicSubnet2CIDR:
+        Description: CIDR for the Public Subnet in AZ 2 
+        Type: String 
+        Default: 10.0.2.0/24 
+
+  PrivateSubnet2CIDR:
+        Description: CIDR for the Private Subnet in AZ 2
+        Type: String 
+        Default: 10.0.3.0/24
+
+  MyIP:
+        Description: My IP Address for Security Groups
+        Type: String
+        Default: 0.0.0.0/0
+
+
+Resources: 
+
+  VPC: 
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: !Ref VpcCIDR
+            EnableDnsHostnames: true
+            Tags: 
+                - Key: Name 
+                  Value: !Ref EnvironmentName
+
+  InternetGateway: 
+        Type: AWS::EC2::InternetGateway
+        Properties: 
+            Tags: 
+                - Key: Name
+                  Value: !Ref EnvironmentName 
+
+  InternetGatewayAttachment:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+            InternetGatewayId: !Ref InternetGateway
+            VpcId: !Ref VPC
+
+  PublicSubnet1: 
+        Type: AWS::EC2::Subnet
+        Properties: 
+          AvailabilityZone: !Select [0, !GetAZs ""]
+          CidrBlock: !Ref PublicSubnet1CIDR
+          MapPublicIpOnLaunch: true
+          Tags: 
+            - Key: Name
+              Value: !Sub ${EnvironmentName}-PublicSubnet1(AZ1)
+          VpcId: !Ref VPC
+
+
+  PublicSubnet2: 
+        Type: AWS::EC2::Subnet
+        Properties: 
+          AvailabilityZone: !Select [1, !GetAZs ""]
+          CidrBlock: !Ref PublicSubnet2CIDR
+          MapPublicIpOnLaunch: true
+          Tags: 
+            - Key: Name
+              Value: !Sub ${EnvironmentName}-PublicSubnet2(AZ2)
+          VpcId: !Ref VPC
+
+  PublicRouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties: 
+            VpcId: !Ref VPC
+            Tags: 
+                - Key: Name 
+                  Value: !Sub ${EnvironmentName}-Public-Routes
+
+  DefaultPublicRoute: 
+        Type: AWS::EC2::Route
+        DependsOn: InternetGatewayAttachment
+        Properties: 
+            RouteTableId: !Ref PublicRouteTable
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref PublicRouteTable
+            SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref PublicRouteTable
+            SubnetId: !Ref PublicSubnet2
+
+  PrivateSecurityGroup: 
+      Type: AWS::EC2::SecurityGroup
+      Properties: 
+        GroupDescription: Security Group for the Private Subnets 
+        GroupName: PrivateSecurityGroup
+        SecurityGroupIngress: 
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Ref MyIP 
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: !Ref MyIP 
+          - IpProtocol: tcp
+            FromPort: 8080
+            ToPort: 8080
+            CidrIp: !Ref MyIP 
+        Tags: 
+          - Key: Name
+            Value: !Sub ${EnvironmentName} Private Subnet Security Group
+        VpcId: !Ref VPC
+        
+  PublicSecurityGroup: 
+        Type: AWS::EC2::SecurityGroup
+        Properties: 
+          GroupDescription: Security Group for the Public Subnets 
+          GroupName: PublicSecurityGroup
+          SecurityGroupIngress: 
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
+          Tags: 
+            - Key: Name
+              Value: !Sub ${EnvironmentName} Public Subnet Security Group
+          VpcId: !Ref VPC
+
+  JenkinsIAMInstanceProfile: 
+        Type: AWS::IAM::InstanceProfile
+        Properties: 
+          InstanceProfileName: JenkinsIAMProfile
+          Roles: 
+            - P3JenkinsRole
+
+  JenkinsInstance:
+        Type: AWS::EC2::Instance
+        Properties:
+          SecurityGroupIds: 
+            - !Ref PrivateSecurityGroup
+          SubnetId: !Ref PublicSubnet1
+          KeyName: AWSKey  
+          IamInstanceProfile: !Ref JenkinsIAMInstanceProfile
+          ImageId: ami-06d51e91cea0dac8d
+          InstanceType: t2.micro
+          Tags: 
+            - Key: Name
+              Value: !Sub ${EnvironmentName}-Jenkins-Instance
+          UserData:
+            Fn::Base64:
+                  !Sub |
+                    #!/bin/bash
+                    touch installationlog.txt
+                    sudo echo -e 'Starting Script \n' >> installationlog.txt
+                    sudo apt-get update
+                    sudo echo -e 'Installing Jenkins \n' >> installationlog.txt
+                    sudo apt install -y default-jdk
+                    wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | sudo apt-key add -
+                    sudo sh -c 'echo deb https://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+                    sudo apt-get update
+                    sudo apt-get install -y jenkins
+                    sudo echo -e 'Install Docker \n' >> installationlog.txt
+                    sudo apt install -y  docker.io
+                    sudo systemctl start docker
+                    sudo systemctl enable docker
+                    sudo echo -e 'Install Git \n' >> installationlog.txt
+                    sudo apt-get install git
+                    sudo echo -e 'Install Kubernetes \n' >> installationlog.txt
+                    sudo curl -o kubectl https://amazon-eks.s3-us-west-2.amazonaws.com/1.13.7/2019-06-11/bin/linux/amd64/kubectl
+                    sudo chmod +x ./kubectl
+                    sudo echo -e 'Copy Kubernetes to local bin \n' >> installationlog.txt
+                    sudo cp ./kubectl /usr/local/bin
+                    export PATH=/usr/local/bin:$PATH
+                    echo -e 'Install IAM Authenticator \n ' >> installationlog.txt
+                    sudo curl -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.13.7/2019-06-11/bin/linux/amd64/aws-iam-authenticator
+                    sudo chmod +x ./aws-iam-authenticator
+                    sudo cp ./aws-iam-authenticator /usr/local/bin
+                    export PATH=/usr/local/bin:$PATH 
+                    sudo echo -e 'Install AWS CLI \n' >> installationlog.txt
+                    sudo apt-get install unzip
+                    sudo apt-get install -y python
+                    curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+                    unzip awscli-bundle.zip
+                    sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
+                    sudo echo -e 'Update kubeconfig with EKS Cluster that shouldve been set up during Cloudformation installation \n' >> installationlog.txt
+                    EKS_CLUSTER_NAME=$(aws eks list-clusters --region us-west-2 --query clusters[0] --output text)
+                    /usr/local/bin/aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region us-west-2 
+                    sudo echo 'Copying .kube to jenkins directory so that it is accessible during Jenkins builds' >> installationlog.txt
+                    sudo cp -r .kube /var/lib/jenkins/
+                    sudo echo -e 'Installing tidy and hadolint for use during Jenkins builds \n' >> installationlog.txt
+                    sudo apt  install -y  tidy
+                    sudo wget -O /bin/hadolint https://github.com/hadolint/hadolint/releases/download/v1.16.3/hadolint-Linux-x86_64
+                    sudo chmod +x /bin/hadolint
+
+  ECRRepository: 
+    Type: AWS::ECR::Repository
+    Properties: 
+      RepositoryName: !Sub ${EnvironmentName}-ecr-repository
+
+  EKSCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Sub ${EnvironmentName}-EKS-Cluster
+      RoleArn: >-
+        arn:aws:iam::235447109042:role/EKSServiceRole
+      ResourcesVpcConfig:
+        SecurityGroupIds:
+          - !Ref PrivateSecurityGroup
+        SubnetIds:
+          - !Ref PublicSubnet1
+          - !Ref PublicSubnet2
+
+  NodeGroup:        
+    Type: AWS::EKS::Nodegroup
+    Properties: 
+      ClusterName: !Ref EKSCluster
+      DiskSize: 10
+      InstanceTypes: 
+        - t3.micro
+      NodegroupName: !Sub ${EnvironmentName}-Node-Group
+      NodeRole: arn:aws:iam::235447109042:role/NodeInstanceRole
+      RemoteAccess: 
+        Ec2SshKey: AWSKey
+        SourceSecurityGroups: 
+          - !Ref PrivateSecurityGroup
+      Subnets: 
+        - !Ref PublicSubnet1 
+        - !Ref PublicSubnet2
