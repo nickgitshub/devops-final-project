@@ -21,6 +21,7 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: 235447109042.dkr.ecr.us-west-2.amazonaws.com/generic-repository:latest
+        image: ECR-REPO
         ports:
+        - containerPort: 80
 
