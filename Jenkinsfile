@@ -37,6 +37,7 @@ pipeline {
         steps{
             dir ('web-app'){
                 sh 'echo "sed \'s|ECR_REPO|"${REPO_VERSION}"|g\' webapp.yaml > webapp-modified.yaml" > executesed.sh && chmod 755 executesed.sh && cat executesed.sh &&./executesed.sh'
+                sh 'cat webapp-modified.yaml'
                 sh 'kubectl apply -f webapp-modified.yaml'
                 sh 'kubectl apply -f webapp.service.yaml'
             }
