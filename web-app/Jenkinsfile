@@ -7,6 +7,11 @@ pipeline {
             )}""" 
   }
   stages {
+    stage('Working'){
+        steps{
+                sh 'echo "Working"'
+        }
+    }
     stage('Pull and Lint Index.html and Dockerfile'){
         steps{
                 sh 'hadolint Dockerfile'
