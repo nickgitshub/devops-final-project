@@ -37,7 +37,7 @@ pipeline {
         steps{
             dir ('web-app'){
                 sh 'cat webapp.yaml'
-                sh 'python generateECR.py $ECR_REPO > executesed.sh && chmod 755 executesed.sh && cat executesed.sh &&./executesed.sh'
+                sh 'python generateECR.py ${REPO_VERSION} > executesed.sh && chmod 755 executesed.sh && cat executesed.sh &&./executesed.sh'
                 sh 'cat webapp-modified.yaml && cat webapp.yaml'
                 sh 'kubectl apply -f webapp-modified.yaml'
                 sh 'kubectl apply -f webapp.service.yaml'
