@@ -12,16 +12,18 @@ pipeline {
   }
   stages {
     stage('Pull and Lint Index.html and Dockerfile'){
-        dir ('web-app') {
-            steps{
-                    sh 'hadolint Dockerfile'
-                    sh 'tidy index.html'
+        
+        steps{
+            dir ('web-app') {
+                sh 'hadolint Dockerfile'
+                sh 'tidy index.html'
             }
         }
     }
     stage('Build Docker Container and commit to ECR') {
-        dir ('web-app') {
-            steps {
+        
+        steps {
+            dir ('web-app') {
                 sh 'sudo docker build . -t webapp:latest' 
                 sh 'sudo $(aws ecr get-login --no-include-email --region us-west-2)'
                 sh 'sudo docker tag webapp:latest ${REPO_VERSION}'
