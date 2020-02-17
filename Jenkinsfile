@@ -36,7 +36,6 @@ pipeline {
     stage('Delete old Kubernetes Pods and deploy new ones'){
         steps{
             dir ('web-app'){
-                sh 'pwd'
                 sh 'echo "sed \'s|ECR_REPO|"${REPO_VERSION}"|g\' webapp.yaml > webapp-modified.yaml" > executesed.sh && chmod 755 executesed.sh && cat executesed.sh &&./executesed.sh'
                 sh 'kubectl apply -f webapp-modified.yaml'
                 sh 'kubectl apply -f webapp.service.yaml'
