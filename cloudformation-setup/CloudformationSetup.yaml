@@ -17,20 +17,10 @@ Parameters:
         Type: String 
         Default: 10.0.0.0/24 
 
-  PrivateSubnet1CIDR:
-        Description: CIDR for the Private Subnet in AZ 1 
-        Type: String 
-        Default: 10.0.1.0/24
-
   PublicSubnet2CIDR:
         Description: CIDR for the Public Subnet in AZ 2 
         Type: String 
         Default: 10.0.2.0/24 
-
-  PrivateSubnet2CIDR:
-        Description: CIDR for the Private Subnet in AZ 2
-        Type: String 
-        Default: 10.0.3.0/24
 
   MyIP:
         Description: My IP Address for Security Groups
