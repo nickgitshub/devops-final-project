@@ -33,17 +33,13 @@ pipeline {
             }
         }
     }
-    stage('Delete old Kubernetes Pods and deploy new ones'){
+    stage('Build Kubernetes cluster / rollout new image'){
         steps{
-            dir ('web-app'){
-                sh 'cat webapp.yaml'
                 sh 'python generateECR.py ${REPO_VERSION} > executesed.sh'
-                sh 'ls -la'
                 sh 'chmod 755 executesed.sh'
-                sh 'ls -la'
                 sh 'cat executesed.sh'
                 sh './executesed.sh'
-                sh 'cat webapp-modified.yaml && cat webapp.yaml'
+                sh 'cat webapp-modified.yaml'
                 sh 'kubectl apply -f webapp-modified.yaml'
                 sh 'kubectl apply -f webapp.service.yaml'
             }
