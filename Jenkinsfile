@@ -35,6 +35,7 @@ pipeline {
     }
     stage('Build Kubernetes cluster / rollout new image'){
         steps{
+            dir ('web-app') {
                 sh 'python generateECR.py ${REPO_VERSION} > executesed.sh'
                 sh 'chmod 755 executesed.sh'
                 sh 'cat executesed.sh'
