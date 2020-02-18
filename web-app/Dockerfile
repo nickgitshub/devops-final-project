@@ -2,8 +2,6 @@ FROM centos:8.1.1911
 # hadolint ignore=DL4000
 MAINTAINER nickgitshub
 
-stupid error
-
 RUN yum -y install httpd
 RUN yum -y install git
 
